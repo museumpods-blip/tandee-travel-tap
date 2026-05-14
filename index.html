@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tandee Travel Companion v3</title>
+<title>Tandee Travel Companion v4</title>
 <meta name="theme-color" content="#08111f">
 <style>
 *{box-sizing:border-box}
@@ -41,9 +41,9 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 <body>
 <main class="app">
 <header class="hero">
-<div class="badge">RELIABLE ROAD ANSWERS</div>
+<div class="badge">ANSWER + ACT</div>
 <h1>Tandee Travel Companion</h1>
-<p>Answers road questions directly and hands off exact place searches to Google Maps, where live business data is strongest.</p>
+<p>Ask for gas, coffee, food, or directions and Tandee opens Maps immediately while speaking a short travel-context answer.</p>
 </header>
 
 <section class="panel">
@@ -80,14 +80,14 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 <button class="quick" data-question="Give me a travel update">Travel update</button>
 </div>
 <div class="ask-row">
-<input id="askInput" placeholder="Ask: How close am I to Brookville? Find coffee near me. Should I stop soon?">
+<input id="askInput" placeholder="Ask: Find gas near me. Find coffee near me. How close am I to Brookville?">
 <button class="blue" id="askBtn">Ask</button>
 </div>
 <div class="ask-row">
 <button class="dark" id="voiceBtn">🎙️ Push to Talk</button>
 <button class="dark" id="speakBtn">🔊 Speak Last</button>
 </div>
-<div class="status" id="voiceStatus">Voice input works in Chrome/Edge if supported. Text input always works.</div>
+<div class="status" id="voiceStatus">For gas/coffee/food requests, Tandee opens Maps automatically. Browser pop-up settings may require tapping once.</div>
 </section>
 
 <section class="panel">
@@ -96,12 +96,12 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 </section>
 
 <section class="panel">
-<h2>Action Cards</h2>
+<h2>Action Card</h2>
 <div class="results" id="results"></div>
 </section>
 
 <section class="notice">
-<strong>Design choice:</strong> This version does not use fragile public map API fetches. Tandee answers what it can calculate, then opens Google Maps for exact live business results, hours, routing, and reviews.
+<strong>Driving UX rule:</strong> Tandee should answer and act. If you ask for gas, coffee, food, or a known destination, this version opens Google Maps immediately instead of making you scroll for a button.
 </section>
 
 <footer>Use Google Maps or Apple Maps for actual turn-by-turn navigation.</footer>
@@ -140,7 +140,7 @@ function startGPS(){
  },err=>{gps.textContent=`GPS error: ${err.message}`;},{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
 }
 
-function startDrive(){if(session.active)return; const now=Date.now(); session.active=true; session.paused=false; session.start=now; session.pausedMs=0; startGPS(); addFeed("Drive session started. I’ll answer directly and use Maps for exact live places.",true);}
+function startDrive(){if(session.active)return; const now=Date.now(); session.active=true; session.paused=false; session.start=now; session.pausedMs=0; startGPS(); addFeed("Drive session started. Ask for gas, coffee, food, or a destination and I’ll open Maps immediately.",true);}
 function pauseDrive(){if(!session.active)return; if(!session.paused){session.paused=true; session.pauseStart=Date.now(); addFeed("Drive session paused.",false);} else {session.paused=false; session.pausedMs+=Date.now()-session.pauseStart; addFeed("Drive session resumed.",false);}}
 function endDrive(){if(session.watchId)navigator.geolocation.clearWatch(session.watchId); addFeed("Drive session ended.",false); session={active:false,paused:false,start:null,pauseStart:null,pausedMs:0,watchId:null,lastMsg:"",mode:"Idle",lat:null,lon:null,label:"Unknown"}; driveTime.textContent="0m"; fatigue.textContent="Low"; mode.textContent="Idle"; locState.textContent="Unknown"; gps.textContent="GPS not active."; results.innerHTML="";}
 
@@ -156,21 +156,27 @@ function distanceMiles(lat1,lon1,lat2,lon2){const R=3958.8,dLat=(lat2-lat1)*Math
 function detectKnownPlace(q){q=q.toLowerCase(); for(const key in knownPlaces){if(q.includes(key))return knownPlaces[key];} return null;}
 function detectCategory(q){
  q=q.toLowerCase();
- if(q.includes("gas")||q.includes("fuel"))return {label:"gas stations", search:"gas stations near me", advice:"For fuel, use Maps for live hours and easiest access. Tandee’s value is timing: stop before rural stretches, late night gaps, or fatigue."};
- if(q.includes("coffee")||q.includes("cafe")||q.includes("café"))return {label:"coffee shops", search:"coffee shops near me", advice:"For coffee, I’d decide based on timing: if you’re leaving a larger exit area, grab it before the options thin out."};
- if(q.includes("food")||q.includes("restaurant")||q.includes("eat")||q.includes("lunch")||q.includes("dinner"))return {label:"food nearby", search:"restaurants near me", advice:"For food, Maps will show the live list. I’d prioritize easy parking, current hours, and whether you want quick or sit-down."};
- if(q.includes("park")||q.includes("scenic")||q.includes("trail")||q.includes("kids"))return {label:"parks or scenic stops", search:"parks scenic stops near me", advice:"For a break, look for parks, overlooks, trailheads, or playgrounds. Tandee can help choose based on time and weather."};
+ if(q.includes("gas")||q.includes("fuel"))return {label:"gas stations", search:"gas stations near me", spoken:"Opening gas stations near you in Maps. Check the top results for easiest access and current hours."};
+ if(q.includes("coffee")||q.includes("cafe")||q.includes("café"))return {label:"coffee shops", search:"coffee shops near me", spoken:"Opening coffee shops near you in Maps. If you’re leaving a larger exit area, grabbing coffee sooner may be smarter."};
+ if(q.includes("food")||q.includes("restaurant")||q.includes("eat")||q.includes("lunch")||q.includes("dinner"))return {label:"food nearby", search:"restaurants near me", spoken:"Opening food near you in Maps. I’d look for easy parking, current hours, and whether you want quick or sit-down."};
+ if(q.includes("park")||q.includes("scenic")||q.includes("trail")||q.includes("kids"))return {label:"parks or scenic stops", search:"parks scenic stops near me", spoken:"Opening parks and scenic stops near you in Maps. Good for stretching, kids, or a low-stress break."};
  return null;
 }
 
 function mapsSearchUrl(search){
- if(hasLocation()) return `https://www.google.com/maps/search/${encodeURIComponent(search)}/@${session.lat},${session.lon},13z`;
+ if(hasLocation()) return `https://www.google.com/maps/search/${encodeURIComponent(search)}/@${session.lat},${session.lon},14z`;
  return `https://www.google.com/maps/search/${encodeURIComponent(search)}`;
 }
-
 function mapsDirectionsUrl(place){
  if(hasLocation()) return `https://www.google.com/maps/dir/?api=1&origin=${session.lat},${session.lon}&destination=${place.lat},${place.lon}`;
  return `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}`;
+}
+function openNow(url){
+ // Must be called from a user-triggered Ask/button/voice-result path. Some mobile browsers may still require permission.
+ const win = window.open(url, "_blank");
+ if(!win){
+   addFeed("Browser blocked the automatic map open. Tap the action card button below.", true);
+ }
 }
 
 function renderAction(title, meta, body, links){
@@ -188,17 +194,19 @@ function answer(qraw){
   if(!hasLocation()){addFeed("I can answer that, but I need your location first. Tap Start Drive or Use Test DuBois.",true);return;}
   const d=distanceMiles(session.lat,session.lon,place.lat,place.lon);
   const driveEstimate=Math.round(d*1.25);
-  const msg=`You are about ${d.toFixed(1)} miles from ${place.name} as the crow flies. Driving distance is probably around ${driveEstimate} miles depending on the route.`;
+  const msg=`You are about ${d.toFixed(1)} miles from ${place.name} as the crow flies. Driving distance is probably around ${driveEstimate} miles depending on the route. Opening Maps.`;
+  const url=mapsDirectionsUrl(place);
   addFeed(msg,true);
-  renderAction(place.name,`Straight-line distance: ${d.toFixed(1)} miles`, "Use Maps for exact driving route and ETA.", [{label:"Directions in Google Maps",href:mapsDirectionsUrl(place),cls:"blue"}]);
+  renderAction(place.name,`Straight-line distance: ${d.toFixed(1)} miles`, "Maps has the exact driving route and ETA.", [{label:"Directions in Google Maps",href:url,cls:"blue"}]);
+  openNow(url);
   return;
  }
 
  if(cat){
-  const locText=hasLocation()?`near your current location`:`near you`;
-  const msg=`For ${cat.label}, I’d use live Google Maps results ${locText}. ${cat.advice}`;
-  addFeed(msg,true);
-  renderAction(`Find ${cat.label}`, hasLocation()?`Using your current location: ${session.label}`:"Location not set", "Open Google Maps for live businesses, hours, ratings, and routing.", [{label:`Open ${cat.label} in Maps`,href:mapsSearchUrl(cat.search),cls:"blue"}]);
+  const url=mapsSearchUrl(cat.search);
+  addFeed(cat.spoken,true);
+  renderAction(`Opening ${cat.label}`, hasLocation()?`Using current location: ${session.label}`:"Location not set", "Maps opens immediately for live results. Use this card if your browser blocks the auto-open.", [{label:`Open ${cat.label} in Maps`,href:url,cls:"blue"}]);
+  openNow(url);
   return;
  }
 
@@ -206,7 +214,9 @@ function answer(qraw){
   const e=getElapsed();
   let msg=e>=90?"Yes. You’ve been driving long enough that a stretch, coffee, restroom, or fuel stop makes sense if one is convenient.":"Not urgently yet. But if you’re entering a rural stretch or it’s getting late, stopping early can still be smarter than waiting.";
   addFeed(msg,true);
-  renderAction("Stop recommendation",`Drive time: ${driveTime.textContent}`,msg,[{label:"Find gas",href:mapsSearchUrl("gas stations near me"),cls:"blue"},{label:"Find coffee",href:mapsSearchUrl("coffee shops near me"),cls:"dark"}]);
+  const gasUrl=mapsSearchUrl("gas stations near me");
+  const coffeeUrl=mapsSearchUrl("coffee shops near me");
+  renderAction("Stop recommendation",`Drive time: ${driveTime.textContent}`,msg,[{label:"Open gas in Maps",href:gasUrl,cls:"blue"},{label:"Open coffee in Maps",href:coffeeUrl,cls:"dark"}]);
   return;
  }
 
@@ -215,7 +225,7 @@ function answer(qraw){
   addFeed(msg,true); return;
  }
 
- addFeed("I can answer distance-to-town questions, help with stop timing, or open reliable Maps searches for gas, coffee, food, and scenic breaks. Try: “How close am I to Brookville?”",true);
+ addFeed("I can open Maps for gas, coffee, food, parks, or directions to a known town. Try: “gas near me” or “how close am I to Brookville?”",true);
 }
 
 document.getElementById("startDrive").onclick=startDrive;
@@ -230,7 +240,7 @@ document.getElementById("speakBtn").onclick=()=>{if(session.lastMsg)speakText(se
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR){const rec=new SR();rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;document.getElementById("voiceBtn").onclick=()=>{voiceStatus.textContent="Listening...";rec.start();};rec.onresult=e=>{const t=e.results[0][0].transcript;voiceStatus.textContent=`Heard: ${t}`;ask.value=t;answer(t);};rec.onerror=e=>voiceStatus.textContent=`Voice error: ${e.error}. Try typing instead.`;}else{document.getElementById("voiceBtn").disabled=true;document.getElementById("voiceBtn").textContent="🎙️ Voice not supported";}
 setInterval(update,60000);
-addFeed("Tandee ready. This version avoids fragile live lookups and uses Google Maps for exact places.",false);
+addFeed("Tandee ready. Ask for gas, coffee, food, parks, or a known destination and I’ll open Maps immediately.",false);
 </script>
 </body>
 </html>
