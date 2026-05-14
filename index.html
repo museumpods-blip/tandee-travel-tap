@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tandee Travel Mode</title>
+<title>Tandee Travel Mode v4</title>
 <meta name="theme-color" content="#08111f">
 <style>
 *{box-sizing:border-box}
@@ -30,7 +30,7 @@ input{width:100%;padding:14px;border-radius:16px;border:1px solid rgba(255,255,2
 .meta{color:#a9bad1;font-size:14px;margin-bottom:8px}
 .card p{margin:6px 0;color:#d2deec}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.actions a,.actions button{display:inline-block;text-decoration:none;border-radius:12px;padding:10px 12px;font-weight:900;border:0}
+.actions a{display:inline-block;text-decoration:none;border-radius:12px;padding:10px 12px;font-weight:900}
 .status{margin-top:10px;color:#a9bad1;font-size:14px;line-height:1.4}
 .notice{margin-top:14px;padding:14px;border-radius:18px;background:#2a0f16;border:1px solid rgba(255,99,132,.35);color:#ffe1e7;line-height:1.45}
 footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24px 0 8px}
@@ -40,9 +40,9 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 <body>
 <main class="app">
 <header class="hero">
-<div class="badge">MOBILE TRAVEL MODE</div>
+<div class="badge">CURRENT LOCATION → DESTINATION</div>
 <h1>Tandee Travel Mode</h1>
-<p>Start from your phone’s location. Tell Tandee where you’re going or what you need. The trip thread updates automatically.</p>
+<p>Tap Start. Tandee gets your current location, sets it as origin, then asks where you’re going.</p>
 </header>
 
 <section class="panel">
@@ -58,26 +58,34 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 <h2>Trip Thread</h2>
 <div class="thread-grid">
 <div class="thread-card"><h3>Origin</h3><p id="originView">Not set</p></div>
-<div class="thread-card"><h3>Destination</h3><p id="destinationView">Not set</p></div>
+<div class="thread-card"><h3>Destination</h3><p id="destinationView">Waiting</p></div>
 <div class="thread-card"><h3>Timing</h3><p id="timingView">Not set</p></div>
-<div class="thread-card"><h3>Next Step</h3><p id="nextView">Ask Tandee</p></div>
+<div class="thread-card"><h3>Next Step</h3><p id="nextView">Start Travel Mode</p></div>
 </div>
-<div class="status">No manual setup required. Destination and timing are inferred from your requests.</div>
+</section>
+
+<section class="panel">
+<h2>Destination</h2>
+<div class="ask-row">
+<input id="destinationInput" placeholder="Where are we going? Example: Pittsburgh, LAX, Myrtle Beach, Brookville...">
+<button class="gold" id="setDestinationBtn">Set Destination</button>
+</div>
+<div class="status">After GPS starts, Tandee will ask this automatically. You can type or use voice.</div>
 </section>
 
 <section class="panel">
 <h2>Ask Tandee</h2>
 <div class="quick-grid">
-<button class="quick" data-question="I am going to LAX tomorrow">Going to LAX tomorrow</button>
-<button class="quick" data-question="Look up flights from PGH to LAX tomorrow">Flights PGH to LAX</button>
 <button class="quick" data-question="Find hotels near my destination">Hotels near destination</button>
 <button class="quick" data-question="Find rental cars at my destination">Rental car</button>
 <button class="quick" data-question="Find dinner near my destination at 7 PM">Dinner at 7</button>
 <button class="quick" data-question="Find gas near me">Gas near me</button>
+<button class="quick" data-question="Look up flights for this trip">Flights for trip</button>
+<button class="quick" data-question="Plan my next travel step">Plan next step</button>
 </div>
 
 <div class="ask-row">
-<input id="askInput" placeholder="Say: I’m going to Pittsburgh tonight. Find hotel. Flights from PGH to LAX tomorrow. Gas near me.">
+<input id="askInput" placeholder="Ask: hotel near destination, gas near me, dinner at 7, flights for trip...">
 <button class="blue" id="askBtn">Ask</button>
 </div>
 
@@ -85,7 +93,7 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 <button class="dark" id="voiceBtn">🎙️ Push to Talk</button>
 <button class="dark" id="speakBtn">🔊 Speak Last</button>
 </div>
-<div class="status" id="voiceStatus">Trip starts from current GPS. Destination comes from what you say.</div>
+<div class="status" id="voiceStatus">If Tandee is waiting for destination, voice/text will set destination first.</div>
 </section>
 
 <section class="panel">
@@ -99,15 +107,16 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 </section>
 
 <section class="notice">
-<strong>Prototype:</strong> Auto-arrival is estimated. If you are near the destination and stopped for a while, Tandee will suggest ending the trip. Use End Trip as backup.
+<strong>UX rule:</strong> The trip begins with location first. Destination comes second. No setup form.
 </section>
 
-<footer>Tandee Travel Mode v3 — auto-origin, conversational destination, travel orchestration.</footer>
+<footer>Tandee Travel Mode v4 — current location first, then destination prompt.</footer>
 </main>
 
 <script>
 let trip={
 active:false,
+awaitingDestination:false,
 origin:"Not set",
 originLat:null,
 originLon:null,
@@ -117,7 +126,7 @@ destination:"",
 destinationLat:null,
 destinationLon:null,
 timing:"",
-next:"Ask Tandee",
+next:"Start Travel Mode",
 watchId:null,
 lastMessage:"",
 lastMovedAt:null,
@@ -132,12 +141,14 @@ const knownPlaces={
 "brookville":{name:"Brookville, PA",lat:41.1617,lon:-79.0831},
 "clearfield":{name:"Clearfield, PA",lat:41.0273,lon:-78.4392},
 "dubois":{name:"DuBois, PA",lat:41.1192,lon:-78.7600},
-"state college":{name:"State College, PA",lat:40.7934,lon:-77.8600}
+"state college":{name:"State College, PA",lat:40.7934,lon:-77.8600},
+"myrtle beach":{name:"Myrtle Beach, SC",lat:33.6891,lon:-78.8867}
 };
 
 const feed=document.getElementById("feed");
 const cards=document.getElementById("cards");
 const ask=document.getElementById("askInput");
+const destinationInput=document.getElementById("destinationInput");
 const gpsStatus=document.getElementById("gpsStatus");
 const voiceStatus=document.getElementById("voiceStatus");
 
@@ -146,16 +157,13 @@ function speakText(text){if(!("speechSynthesis" in window))return; speechSynthes
 function addFeed(msg,speak=true){const time=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}); const div=document.createElement("div"); div.className="feed-item"; div.innerHTML=`<div class="feed-time">${time}</div><div>${esc(msg)}</div>`; feed.prepend(div); trip.lastMessage=msg; if(speak)speakText(msg);}
 function updateUI(){
 document.getElementById("originView").textContent=trip.origin||"Not set";
-document.getElementById("destinationView").textContent=trip.destination||"Not set";
+document.getElementById("destinationView").textContent=trip.destination|| (trip.awaitingDestination?"Where are we going?":"Waiting");
 document.getElementById("timingView").textContent=trip.timing||"Not set";
 document.getElementById("nextView").textContent=trip.next||"Ask Tandee";
-localStorage.setItem("tandeeAutoTrip",JSON.stringify(trip));
+localStorage.setItem("tandeeDestinationPromptTrip",JSON.stringify({...trip,watchId:null}));
 }
 function loadTrip(){
-try{
-const saved=JSON.parse(localStorage.getItem("tandeeAutoTrip")||"{}");
-trip={...trip,...saved, watchId:null};
-}catch(e){}
+try{const saved=JSON.parse(localStorage.getItem("tandeeDestinationPromptTrip")||"{}"); trip={...trip,...saved,watchId:null};}catch(e){}
 updateUI();
 }
 function setNext(text){trip.next=text;updateUI();}
@@ -187,7 +195,10 @@ const lat=pos.coords.latitude, lon=pos.coords.longitude, sp=pos.coords.speed;
 trip.currentLat=lat; trip.currentLon=lon;
 if(!trip.originLat){
 trip.originLat=lat; trip.originLon=lon; trip.origin="Current Location";
-addFeed("Travel mode started. I’ll use your current location as the trip origin.",true);
+trip.awaitingDestination=true;
+trip.next="Set destination";
+addFeed("I have your current location. Where are we going?",true);
+destinationInput.focus();
 }
 gpsStatus.textContent=`GPS active — ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
 if(sp && sp>2) trip.lastMovedAt=Date.now();
@@ -195,7 +206,7 @@ checkArrival();
 updateUI();
 },err=>{
 gpsStatus.textContent=`GPS error: ${err.message}`;
-addFeed("GPS did not start. On mobile, this works best from HTTPS and after allowing location.",true);
+addFeed("GPS did not start. On mobile, allow location and use HTTPS.",true);
 },{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
 updateUI();
 }
@@ -203,10 +214,11 @@ updateUI();
 function endTrip(){
 if(trip.watchId) navigator.geolocation.clearWatch(trip.watchId);
 trip.active=false;
+trip.awaitingDestination=false;
 trip.watchId=null;
 trip.next="Trip ended";
 gpsStatus.textContent="GPS not active.";
-addFeed("Trip ended. I cleared active monitoring but kept the last thread for reference.",false);
+addFeed("Trip ended. I kept the last thread for reference.",false);
 updateUI();
 }
 
@@ -217,6 +229,18 @@ for(const key in knownPlaces){
 }
 return null;
 }
+function cleanDestinationText(q){
+let s=q.trim();
+s=s.replace(/^i'?m going to /i,"");
+s=s.replace(/^i am going to /i,"");
+s=s.replace(/^headed to /i,"");
+s=s.replace(/^driving to /i,"");
+s=s.replace(/^going to /i,"");
+s=s.replace(/^trip to /i,"");
+s=s.replace(/\b(today|tomorrow|tonight)\b/ig,"");
+s=s.trim().replace(/[?.!]+$/,"");
+return s;
+}
 function extractTiming(q){
 const low=q.toLowerCase();
 if(low.includes("tomorrow")) return "tomorrow";
@@ -225,14 +249,28 @@ if(low.includes("tonight")) return "tonight";
 const m=q.match(/\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|May|June|July|August|September|October|November|December)\b.*$/i);
 return m?m[0]:"";
 }
-function setDestination(place,timing=""){
+
+function setDestinationFromText(text){
+const q=text.trim();
+if(!q){addFeed("Tell me where we are going.",true);return;}
+const place=detectPlace(q);
+const timing=extractTiming(q);
 if(place){
 trip.destination=place.name;
 trip.destinationLat=place.lat;
 trip.destinationLon=place.lon;
+}else{
+trip.destination=cleanDestinationText(q);
+trip.destinationLat=null;
+trip.destinationLon=null;
 }
 if(timing) trip.timing=timing;
-setNext("Flights, hotel, car, or dinner?");
+trip.awaitingDestination=false;
+trip.next="Route, hotel, flight, food, or car?";
+destinationInput.value=trip.destination;
+updateUI();
+addFeed(`Destination set to ${trip.destination}${trip.timing?" for "+trip.timing:""}. What do you need next: route, hotel, flights, food, or rental car?`,true);
+renderCards([{title:"Destination Set",meta:trip.destination,body:"Tandee will now use this as the active destination.",links:[{label:"Open destination in Maps",href:mapsDestinationUrl(),cls:"blue"}]}]);
 }
 
 function distanceMiles(lat1,lon1,lat2,lon2){
@@ -248,17 +286,20 @@ const stoppedLong=trip.lastMovedAt && (Date.now()-trip.lastMovedAt>10*60*1000);
 if(d<0.35 && stoppedLong){
 trip.arrivalPrompted=true;
 addFeed("Looks like you may have arrived or stopped near the destination. Want to end this trip?",true);
-renderCards([{title:"Possible Arrival",meta:`About ${d.toFixed(1)} miles from destination`,body:"If this trip is done, tap End Trip.",links:[]}]);
 }
 }
 
+function mapsDestinationUrl(){
+if(trip.destinationLat&&trip.destinationLon){
+ if(trip.currentLat&&trip.currentLon)return `https://www.google.com/maps/dir/?api=1&origin=${trip.currentLat},${trip.currentLon}&destination=${trip.destinationLat},${trip.destinationLon}`;
+ return `https://www.google.com/maps/search/?api=1&query=${trip.destinationLat},${trip.destinationLon}`;
+}
+if(trip.currentLat&&trip.currentLon)return `https://www.google.com/maps/dir/?api=1&origin=${trip.currentLat},${trip.currentLon}&destination=${encodeURIComponent(trip.destination)}`;
+return `https://www.google.com/maps/search/${encodeURIComponent(trip.destination)}`;
+}
 function mapsSearchUrl(q){
 if(trip.currentLat&&trip.currentLon)return `https://www.google.com/maps/search/${encodeURIComponent(q)}/@${trip.currentLat},${trip.currentLon},14z`;
 return `https://www.google.com/maps/search/${encodeURIComponent(q)}`;
-}
-function directionsUrl(place){
-if(trip.currentLat&&trip.currentLon)return `https://www.google.com/maps/dir/?api=1&origin=${trip.currentLat},${trip.currentLon}&destination=${place.lat},${place.lon}`;
-return `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}`;
 }
 function flightsUrl(from,to){return `https://www.google.com/travel/flights?q=Flights%20from%20${encodeURIComponent(from)}%20to%20${encodeURIComponent(to)}`;}
 function hotelsUrl(where){return `https://www.google.com/travel/hotels?q=${encodeURIComponent("hotels near "+where)}`;}
@@ -268,86 +309,84 @@ function dinnerUrl(where,t){return `https://www.google.com/search?q=${encodeURIC
 function answer(qraw){
 const q=qraw.trim(); if(!q)return;
 const low=q.toLowerCase();
-const place=detectPlace(q);
-const timing=extractTiming(q);
 
-if((low.includes("going to")||low.includes("headed to")||low.includes("driving to")||low.includes("trip to")) && place){
- setDestination(place,timing);
- addFeed(`Got it. Destination set to ${place.name}${timing? " for "+timing:""}. What do you need next: route, hotel, food, rental car, or timing?`,true);
- renderCards([{title:"Destination Set",meta:place.name,body:"Tandee will now use this as the active destination.",links:[{label:"Open destination in Maps",href:directionsUrl(place),cls:"blue"}]}]);
- return;
+if(trip.awaitingDestination){
+setDestinationFromText(q);
+return;
+}
+
+if((low.includes("going to")||low.includes("headed to")||low.includes("driving to")||low.includes("trip to"))){
+setDestinationFromText(q);
+return;
+}
+
+if(low.includes("route")||low.includes("directions")||low.includes("navigate")){
+if(!trip.destination){addFeed("Set a destination first. Where are we going?",true); trip.awaitingDestination=true; updateUI(); return;}
+const url=mapsDestinationUrl();
+addFeed(`Opening directions to ${trip.destination}.`,true);
+renderCards([{title:"Directions",meta:trip.destination,body:"Maps has the live route and ETA.",links:[{label:"Open Directions",href:url,cls:"blue"}]}]);
+openNow(url);
+return;
 }
 
 if(low.includes("flight")){
- let from=detectAirportOrigin(q)||"PGH";
- let to=(place&&place.code)||detectAirportDestination(q)||airportCodeFromDestination()||"";
- if(!to){addFeed("I need a destination airport. Example: flights from PGH to LAX tomorrow.",true);return;}
- if(place)setDestination(place,timing);
- const url=flightsUrl(from,to);
- addFeed(`Opening flights from ${from} to ${to}${timing? " for "+timing:""}. After flight timing, I’d handle hotel, rental car, and dinner.`,true);
- setNext("Hotel or rental car?");
- renderCards([{title:"Flight Search",meta:`${from} → ${to}`,body:"Compare nonstop, price, departure time, and arrival window.",links:[{label:"Open Google Flights",href:url,cls:"blue"}]},{title:"Next: Hotel",meta:"Follow-up",body:"Search hotels near the arrival area once flight timing is clear.",links:[{label:"Hotels near destination",href:hotelsUrl(to),cls:"gold"}]}]);
- openNow(url);
- return;
+if(!trip.destination){addFeed("Where are we flying to?",true); trip.awaitingDestination=true; updateUI(); return;}
+let from=detectAirportOrigin(q)||"PGH";
+let to=detectAirportDestination(q)||airportCodeFromDestination()||trip.destination;
+const url=flightsUrl(from,to);
+addFeed(`Opening flights from ${from} to ${to}${trip.timing?" for "+trip.timing:""}. After flight timing, I’d handle hotel, car, and dinner.`,true);
+setNext("Hotel or rental car?");
+renderCards([{title:"Flight Search",meta:`${from} → ${to}`,body:"Compare nonstop, price, departure time, and arrival window.",links:[{label:"Open Google Flights",href:url,cls:"blue"}]}]);
+openNow(url);
+return;
 }
 
 if(low.includes("hotel")||low.includes("motel")||low.includes("lodging")||low.includes("stay")){
- const where=place?place.name:(trip.destination||"near me");
- if(place)setDestination(place,timing);
- const url=hotelsUrl(where);
- addFeed(`Opening hotels near ${where}. Check parking, check-in time, reviews, and distance from what you’re doing first.`,true);
- setNext("Rental car or dinner?");
- renderCards([{title:"Hotel Search",meta:where,body:"Use this after your destination or arrival window is known.",links:[{label:"Open Hotel Search",href:url,cls:"blue"}]}]);
- openNow(url);
- return;
+if(!trip.destination){addFeed("Where should I search for hotels?",true); trip.awaitingDestination=true; updateUI(); return;}
+const url=hotelsUrl(trip.destination);
+addFeed(`Opening hotels near ${trip.destination}. Check parking, check-in time, and distance from what you’re doing first.`,true);
+setNext("Rental car or dinner?");
+renderCards([{title:"Hotel Search",meta:trip.destination,body:"Use this after your arrival window is known.",links:[{label:"Open Hotel Search",href:url,cls:"blue"}]}]);
+openNow(url);
+return;
 }
 
 if(low.includes("rental")||low.includes("car rental")||low.includes("rent a car")){
- const where=trip.destination||"near me";
- const url=carsUrl(where);
- addFeed(`Opening rental cars near ${where}. Match pickup time with flight arrival and hotel check-in.`,true);
- setNext("Hotel or dinner?");
- renderCards([{title:"Rental Car Search",meta:where,body:"Check pickup location, hours, fees, and return timing.",links:[{label:"Open Rental Cars",href:url,cls:"blue"}]}]);
- openNow(url);
- return;
+if(!trip.destination){addFeed("Where should I search for rental cars?",true); trip.awaitingDestination=true; updateUI(); return;}
+const url=carsUrl(trip.destination);
+addFeed(`Opening rental cars near ${trip.destination}. Match pickup time with your arrival and hotel check-in.`,true);
+setNext("Hotel or dinner?");
+renderCards([{title:"Rental Car Search",meta:trip.destination,body:"Check pickup location, hours, fees, and return timing.",links:[{label:"Open Rental Cars",href:url,cls:"blue"}]}]);
+openNow(url);
+return;
 }
 
 if(low.includes("dinner")||low.includes("restaurant")||low.includes("reservation")||low.includes("eat")){
- const where=place?place.name:(trip.destination||"near me");
- const t=extractTime(q)||"";
- const url=dinnerUrl(where,t);
- addFeed(`Opening dinner options near ${where}${t? " around "+t:""}. For travel, choose based on timing and parking, not just rating.`,true);
- setNext("Confirm timing");
- renderCards([{title:"Dinner Search",meta:`${where} ${t}`,body:"Look for reservation availability and whether it fits your arrival window.",links:[{label:"Open Dinner Search",href:url,cls:"blue"}]}]);
- openNow(url);
- return;
-}
-
-if(place && (low.includes("how close")||low.includes("how far")||low.includes("distance"))){
- if(!trip.currentLat){addFeed("I need your current location first. Tap Start Travel Mode.",true);return;}
- const d=distanceMiles(trip.currentLat,trip.currentLon,place.lat,place.lon);
- addFeed(`You are about ${d.toFixed(1)} miles from ${place.name} as the crow flies. Opening Maps for exact drive time.`,true);
- const url=directionsUrl(place);
- renderCards([{title:"Distance / Directions",meta:place.name,body:`Straight-line distance: ${d.toFixed(1)} miles. Maps has the actual route.`,links:[{label:"Open Directions",href:url,cls:"blue"}]}]);
- openNow(url);
- return;
+const where=trip.destination||"near me";
+const t=extractTime(q)||"";
+const url=dinnerUrl(where,t);
+addFeed(`Opening dinner options near ${where}${t?" around "+t:""}. Choose based on travel timing and parking, not just rating.`,true);
+setNext("Confirm timing");
+renderCards([{title:"Dinner Search",meta:`${where} ${t}`,body:"Look for reservation availability and whether it fits your arrival window.",links:[{label:"Open Dinner Search",href:url,cls:"blue"}]}]);
+openNow(url);
+return;
 }
 
 if(low.includes("gas")||low.includes("coffee")||low.includes("pharmacy")||low.includes("hospital")||low.includes("walmart")||low.includes("store")||low.includes("campground")||low.includes("bathroom")||low.includes("restroom")){
- const search=cleanNearMe(q);
- const url=mapsSearchUrl(search);
- addFeed(`Opening Maps for ${search}. I’ll treat this as a road-stop decision, not just a search result.`,true);
- renderCards([{title:"Road Stop Search",meta:search,body:"Pick the easiest stop based on timing, parking, hours, and the next part of the journey.",links:[{label:"Open in Maps",href:url,cls:"blue"}]}]);
- openNow(url);
- return;
+const search=cleanNearMe(q);
+const url=mapsSearchUrl(search);
+addFeed(`Opening Maps for ${search}. I’ll treat this as a road-stop decision, not just a search result.`,true);
+renderCards([{title:"Road Stop Search",meta:search,body:"Pick the easiest stop based on timing, parking, hours, and the next part of the journey.",links:[{label:"Open in Maps",href:url,cls:"blue"}]}]);
+openNow(url);
+return;
 }
 
 if(low.includes("next")||low.includes("plan")){
- addFeed(nextStepMessage(),true);
- return;
+addFeed(nextStepMessage(),true);
+return;
 }
 
-addFeed("I can set a destination, search flights, hotels, rental cars, dinner, road stops, or distance. Try: I’m going to Pittsburgh tonight, or find hotels near my destination.",true);
+addFeed("Tell me where we’re going, or ask for route, hotel, flights, rental car, dinner, gas, coffee, or road stops.",true);
 }
 
 function detectAirportOrigin(q){
@@ -360,7 +399,7 @@ return m?m[1]:null;
 }
 function airportCodeFromDestination(){
 if(trip.destination.includes("LAX"))return"LAX";
-if(trip.destination.includes("Pittsburgh"))return"PGH";
+if(trip.destination.includes("PGH")||trip.destination.includes("Pittsburgh"))return"PGH";
 return "";
 }
 function extractTime(q){
@@ -376,13 +415,15 @@ if(!s.includes("near me")&&!s.includes("nearby"))s+=" near me";
 return s;
 }
 function nextStepMessage(){
-if(!trip.destination)return"Tell me where you’re going, and I’ll start the trip thread from your current location.";
-if(trip.destination&&!trip.timing)return"Next step: tell me when you’re going, then I can coordinate route, hotel, car, and dinner timing.";
-return`Next step for ${trip.destination}: decide whether you need hotel, rental car, dinner, or a road stop.`;
+if(!trip.destination)return"I have your location. Next step: tell me the destination.";
+if(!trip.timing)return`Destination is ${trip.destination}. Next step: tell me when, or ask for route, hotel, food, flight, or rental car.`;
+return`For ${trip.destination} ${trip.timing}, next step is route, hotel, rental car, dinner, or road stops.`;
 }
 
 document.getElementById("startBtn").onclick=startTravel;
 document.getElementById("endBtn").onclick=endTrip;
+document.getElementById("setDestinationBtn").onclick=()=>setDestinationFromText(destinationInput.value);
+destinationInput.onkeydown=e=>{if(e.key==="Enter")setDestinationFromText(destinationInput.value)};
 document.getElementById("askBtn").onclick=()=>answer(ask.value);
 ask.onkeydown=e=>{if(e.key==="Enter")answer(ask.value)};
 document.querySelectorAll(".quick").forEach(b=>b.onclick=()=>{ask.value=b.dataset.question;answer(b.dataset.question)});
@@ -392,7 +433,7 @@ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR){
 const rec=new SR();rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;
 document.getElementById("voiceBtn").onclick=()=>{voiceStatus.textContent="Listening...";rec.start();};
-rec.onresult=e=>{const t=e.results[0][0].transcript;voiceStatus.textContent=`Heard: ${t}`;ask.value=t;answer(t);};
+rec.onresult=e=>{const t=e.results[0][0].transcript;voiceStatus.textContent=`Heard: ${t}`; if(trip.awaitingDestination){destinationInput.value=t;setDestinationFromText(t);}else{ask.value=t;answer(t);}};
 rec.onerror=e=>voiceStatus.textContent=`Voice error: ${e.error}. Try typing instead.`;
 }else{
 document.getElementById("voiceBtn").disabled=true;
@@ -400,7 +441,7 @@ document.getElementById("voiceBtn").textContent="🎙️ Voice not supported";
 }
 
 loadTrip();
-addFeed("Tandee ready. Tap Start Travel Mode, then tell me where you’re going or what you need.",false);
+addFeed("Tandee ready. Tap Start Travel Mode and I’ll get your current location, then ask where we’re going.",false);
 </script>
 </body>
 </html>
