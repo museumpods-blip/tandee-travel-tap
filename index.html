@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tandee Travel Companion v2</title>
+<title>Tandee Travel Companion v3</title>
 <meta name="theme-color" content="#08111f">
 <style>
 *{box-sizing:border-box}
@@ -41,9 +41,9 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 <body>
 <main class="app">
 <header class="hero">
-<div class="badge">JOURNEY-AWARE ANSWERS</div>
+<div class="badge">RELIABLE ROAD ANSWERS</div>
 <h1>Tandee Travel Companion</h1>
-<p>Answers practical road questions first, then adds travel context. Uses GPS plus live OpenStreetMap lookup where possible.</p>
+<p>Answers road questions directly and hands off exact place searches to Google Maps, where live business data is strongest.</p>
 </header>
 
 <section class="panel">
@@ -96,19 +96,19 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 </section>
 
 <section class="panel">
-<h2>Results / Actions</h2>
+<h2>Action Cards</h2>
 <div class="results" id="results"></div>
 </section>
 
 <section class="notice">
-<strong>Prototype note:</strong> This version is built to answer direct questions. Live place lookup uses OpenStreetMap/Overpass and may miss or duplicate places in rural areas.
+<strong>Design choice:</strong> This version does not use fragile public map API fetches. Tandee answers what it can calculate, then opens Google Maps for exact live business results, hours, routing, and reviews.
 </section>
 
 <footer>Use Google Maps or Apple Maps for actual turn-by-turn navigation.</footer>
 </main>
 
 <script>
-let session={active:false,paused:false,start:null,pauseStart:null,pausedMs:0,watchId:null,lastPrompt:0,lastMsg:"",mode:"Idle",lat:null,lon:null,label:"Unknown"};
+let session={active:false,paused:false,start:null,pauseStart:null,pausedMs:0,watchId:null,lastMsg:"",mode:"Idle",lat:null,lon:null,label:"Unknown"};
 const feed=document.getElementById("tandeeFeed"), results=document.getElementById("results"), driveTime=document.getElementById("driveTime"), fatigue=document.getElementById("fatigueState"), mode=document.getElementById("travelMode"), locState=document.getElementById("locationState"), gps=document.getElementById("gpsStatus"), ask=document.getElementById("askInput"), voiceStatus=document.getElementById("voiceStatus");
 
 const knownPlaces={
@@ -124,6 +124,7 @@ function esc(t){return String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",
 function addFeed(msg,speak=false){const time=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}); const div=document.createElement("div"); div.className="feed-item"; div.innerHTML=`<div class="feed-time">${time}</div><div>${esc(msg)}</div>`; feed.prepend(div); session.lastMsg=msg; if(speak)speakText(msg);}
 function speakText(text){if(!("speechSynthesis" in window))return; speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.rate=.96; speechSynthesis.speak(u);}
 function setLocation(lat,lon,label){session.lat=lat;session.lon=lon;session.label=label;locState.textContent=label;gps.textContent=`Location active — ${label} (${lat.toFixed(4)}, ${lon.toFixed(4)})`;}
+function hasLocation(){return session.lat!==null && session.lon!==null}
 
 function startGPS(){
  if(!navigator.geolocation){gps.textContent="GPS not supported.";return;}
@@ -139,9 +140,9 @@ function startGPS(){
  },err=>{gps.textContent=`GPS error: ${err.message}`;},{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
 }
 
-function startDrive(){if(session.active)return; const now=Date.now(); session.active=true; session.paused=false; session.start=now; session.pausedMs=0; session.lastPrompt=now; startGPS(); addFeed("Drive session started. Ask me direct questions and I’ll answer first, then add context.",true);}
+function startDrive(){if(session.active)return; const now=Date.now(); session.active=true; session.paused=false; session.start=now; session.pausedMs=0; startGPS(); addFeed("Drive session started. I’ll answer directly and use Maps for exact live places.",true);}
 function pauseDrive(){if(!session.active)return; if(!session.paused){session.paused=true; session.pauseStart=Date.now(); addFeed("Drive session paused.",false);} else {session.paused=false; session.pausedMs+=Date.now()-session.pauseStart; addFeed("Drive session resumed.",false);}}
-function endDrive(){if(session.watchId)navigator.geolocation.clearWatch(session.watchId); addFeed("Drive session ended.",false); session={active:false,paused:false,start:null,pauseStart:null,pausedMs:0,watchId:null,lastPrompt:0,lastMsg:"",mode:"Idle",lat:null,lon:null,label:"Unknown"}; driveTime.textContent="0m"; fatigue.textContent="Low"; mode.textContent="Idle"; locState.textContent="Unknown"; gps.textContent="GPS not active."; results.innerHTML="";}
+function endDrive(){if(session.watchId)navigator.geolocation.clearWatch(session.watchId); addFeed("Drive session ended.",false); session={active:false,paused:false,start:null,pauseStart:null,pausedMs:0,watchId:null,lastMsg:"",mode:"Idle",lat:null,lon:null,label:"Unknown"}; driveTime.textContent="0m"; fatigue.textContent="Low"; mode.textContent="Idle"; locState.textContent="Unknown"; gps.textContent="GPS not active."; results.innerHTML="";}
 
 function update(){
  if(!session.active||session.paused||!session.start)return;
@@ -152,99 +153,69 @@ function update(){
 function getElapsed(){return session.active&&session.start?Math.floor((Date.now()-session.start-session.pausedMs)/60000):0;}
 
 function distanceMiles(lat1,lon1,lat2,lon2){const R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
-
-function detectKnownPlace(q){
+function detectKnownPlace(q){q=q.toLowerCase(); for(const key in knownPlaces){if(q.includes(key))return knownPlaces[key];} return null;}
+function detectCategory(q){
  q=q.toLowerCase();
- for(const key in knownPlaces){if(q.includes(key))return knownPlaces[key];}
+ if(q.includes("gas")||q.includes("fuel"))return {label:"gas stations", search:"gas stations near me", advice:"For fuel, use Maps for live hours and easiest access. Tandee’s value is timing: stop before rural stretches, late night gaps, or fatigue."};
+ if(q.includes("coffee")||q.includes("cafe")||q.includes("café"))return {label:"coffee shops", search:"coffee shops near me", advice:"For coffee, I’d decide based on timing: if you’re leaving a larger exit area, grab it before the options thin out."};
+ if(q.includes("food")||q.includes("restaurant")||q.includes("eat")||q.includes("lunch")||q.includes("dinner"))return {label:"food nearby", search:"restaurants near me", advice:"For food, Maps will show the live list. I’d prioritize easy parking, current hours, and whether you want quick or sit-down."};
+ if(q.includes("park")||q.includes("scenic")||q.includes("trail")||q.includes("kids"))return {label:"parks or scenic stops", search:"parks scenic stops near me", advice:"For a break, look for parks, overlooks, trailheads, or playgrounds. Tandee can help choose based on time and weather."};
  return null;
 }
 
-function categoryFromQuestion(q){
- q=q.toLowerCase();
- if(q.includes("gas")||q.includes("fuel")) return {label:"gas stations", tags:['node["amenity"="fuel"]','way["amenity"="fuel"]','relation["amenity"="fuel"]']};
- if(q.includes("coffee")||q.includes("cafe")||q.includes("café")) return {label:"coffee shops", tags:['node["amenity"="cafe"]','way["amenity"="cafe"]','relation["amenity"="cafe"]']};
- if(q.includes("food")||q.includes("restaurant")||q.includes("eat")||q.includes("lunch")||q.includes("dinner")) return {label:"food", tags:['node["amenity"="restaurant"]','way["amenity"="restaurant"]','node["amenity"="fast_food"]','way["amenity"="fast_food"]']};
- if(q.includes("park")||q.includes("scenic")||q.includes("trail")||q.includes("kids")) return {label:"parks / scenic stops", tags:['node["leisure"="park"]','way["leisure"="park"]','node["leisure"="playground"]','way["leisure"="playground"]','node["tourism"="viewpoint"]','way["tourism"="viewpoint"]']};
- return null;
+function mapsSearchUrl(search){
+ if(hasLocation()) return `https://www.google.com/maps/search/${encodeURIComponent(search)}/@${session.lat},${session.lon},13z`;
+ return `https://www.google.com/maps/search/${encodeURIComponent(search)}`;
 }
 
-function buildOverpass(lat,lon,tags,radius=8000){return `[out:json][timeout:15];\\n(\\n${tags.map(t=>`${t}(around:${radius},${lat},${lon});`).join("\\n")}\\n);\\nout center tags 20;`;}
-
-async function liveSearch(cat){
- if(session.lat==null){addFeed("I need your location first. Tap Start Drive or use Test DuBois.",true);return;}
- results.innerHTML=`<div class="result-card"><h3>Searching</h3><p>Looking for ${esc(cat.label)} near ${esc(session.label)}...</p></div>`;
- try{
-  const res=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:"data="+encodeURIComponent(buildOverpass(session.lat,session.lon,cat.tags))});
-  if(!res.ok) throw new Error("Map lookup failed");
-  const data=await res.json();
-  let items=(data.elements||[]).map(el=>{
-   const lat=el.lat||(el.center&&el.center.lat), lon=el.lon||(el.center&&el.center.lon);
-   if(!lat||!lon)return null;
-   const tags=el.tags||{};
-   const name=tags.name||tags.brand||tags.operator||guessName(tags);
-   if(!name)return null;
-   return {name,type:readType(tags),lat,lon,dist:distanceMiles(session.lat,session.lon,lat,lon)};
-  }).filter(Boolean);
-  items=dedupe(items).sort((a,b)=>a.dist-b.dist).slice(0,5);
-  if(!items.length){addFeed(`I couldn't find reliable ${cat.label} nearby in the public map data. Google Maps may still show more.`,true);results.innerHTML="";return;}
-  const first=items[0];
-  addFeed(`Closest ${cat.label} I found: ${first.name}, about ${first.dist.toFixed(1)} miles away. I listed a few options below.`,true);
-  renderResults(items);
- }catch(e){
-  addFeed("The live map lookup failed. This may be the public map server or browser request blocking.",true);
-  results.innerHTML=`<div class="result-card"><h3>Lookup failed</h3><p>${esc(e.message)}</p></div>`;
- }
+function mapsDirectionsUrl(place){
+ if(hasLocation()) return `https://www.google.com/maps/dir/?api=1&origin=${session.lat},${session.lon}&destination=${place.lat},${place.lon}`;
+ return `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}`;
 }
 
-function guessName(t){if(t.amenity==="fuel")return"Gas station"; if(t.amenity==="cafe")return"Coffee shop"; if(t.amenity==="restaurant")return"Restaurant"; if(t.amenity==="fast_food")return"Fast food"; if(t.leisure==="park")return"Park"; if(t.leisure==="playground")return"Playground"; if(t.tourism==="viewpoint")return"Scenic viewpoint"; return "";}
-function readType(t){return t.amenity||t.leisure||t.tourism||"place";}
-function dedupe(items){
- const kept=[];
- for(const item of items){
-  const dup=kept.some(k=>(k.name.toLowerCase()===item.name.toLowerCase()&&Math.abs(k.dist-item.dist)<0.05)||distanceMiles(k.lat,k.lon,item.lat,item.lon)<0.03);
-  if(!dup)kept.push(item);
- }
- return kept;
-}
-function renderResults(items){
- results.innerHTML=items.map(i=>{
-  const maps=`https://www.google.com/maps/search/?api=1&query=${i.lat},${i.lon}`;
-  return `<div class="result-card"><h3>${esc(i.name)}</h3><div class="meta">${esc(i.type)} · ${i.dist.toFixed(1)} miles away</div><p>Open in Maps for routing, hours, and current details.</p><div class="actions"><a class="blue" href="${maps}" target="_blank">Open in Maps</a></div></div>`;
- }).join("");
+function renderAction(title, meta, body, links){
+ results.innerHTML=`<div class="result-card"><h3>${esc(title)}</h3><div class="meta">${esc(meta)}</div><p>${esc(body)}</p><div class="actions">${links.map(l=>`<a class="${l.cls||"blue"}" href="${l.href}" target="_blank">${esc(l.label)}</a>`).join("")}</div></div>`;
 }
 
-async function answer(qraw){
+function answer(qraw){
  const q=qraw.trim();
  if(!q)return;
  const low=q.toLowerCase();
  const place=detectKnownPlace(low);
- const cat=categoryFromQuestion(low);
+ const cat=detectCategory(low);
 
  if(place && (low.includes("how close")||low.includes("how far")||low.includes("distance")||low.includes("near"))){
-  if(session.lat==null){addFeed(`I can answer that, but I need your location first. Tap Start Drive or Use Test DuBois.`,true);return;}
+  if(!hasLocation()){addFeed("I can answer that, but I need your location first. Tap Start Drive or Use Test DuBois.",true);return;}
   const d=distanceMiles(session.lat,session.lon,place.lat,place.lon);
   const driveEstimate=Math.round(d*1.25);
-  addFeed(`You are about ${d.toFixed(1)} miles from ${place.name} as the crow flies. Driving distance is probably around ${driveEstimate} miles depending on the route.`,true);
-  results.innerHTML=`<div class="result-card"><h3>${esc(place.name)}</h3><div class="meta">Estimated straight-line distance: ${d.toFixed(1)} miles</div><p>Use Maps for exact driving route and ETA.</p><div class="actions"><a class="blue" href="https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}" target="_blank">Open ${esc(place.name)} in Maps</a></div></div>`;
+  const msg=`You are about ${d.toFixed(1)} miles from ${place.name} as the crow flies. Driving distance is probably around ${driveEstimate} miles depending on the route.`;
+  addFeed(msg,true);
+  renderAction(place.name,`Straight-line distance: ${d.toFixed(1)} miles`, "Use Maps for exact driving route and ETA.", [{label:"Directions in Google Maps",href:mapsDirectionsUrl(place),cls:"blue"}]);
   return;
  }
 
  if(cat){
-  await liveSearch(cat);
+  const locText=hasLocation()?`near your current location`:`near you`;
+  const msg=`For ${cat.label}, I’d use live Google Maps results ${locText}. ${cat.advice}`;
+  addFeed(msg,true);
+  renderAction(`Find ${cat.label}`, hasLocation()?`Using your current location: ${session.label}`:"Location not set", "Open Google Maps for live businesses, hours, ratings, and routing.", [{label:`Open ${cat.label} in Maps`,href:mapsSearchUrl(cat.search),cls:"blue"}]);
   return;
  }
 
  if(low.includes("stop soon")||low.includes("should i stop")){
   const e=getElapsed();
   let msg=e>=90?"Yes. You’ve been driving long enough that a stretch, coffee, restroom, or fuel stop makes sense if one is convenient.":"Not urgently yet. But if you’re entering a rural stretch or it’s getting late, stopping early can still be smarter than waiting.";
-  addFeed(msg,true); return;
+  addFeed(msg,true);
+  renderAction("Stop recommendation",`Drive time: ${driveTime.textContent}`,msg,[{label:"Find gas",href:mapsSearchUrl("gas stations near me"),cls:"blue"},{label:"Find coffee",href:mapsSearchUrl("coffee shops near me"),cls:"dark"}]);
+  return;
  }
 
  if(low.includes("update")){
-  addFeed(`Current travel state: drive time ${driveTime.textContent}, fatigue ${fatigue.textContent}, mode ${mode.textContent}, location ${locState.textContent}.`,true); return;
+  const msg=`Current travel state: drive time ${driveTime.textContent}, fatigue ${fatigue.textContent}, mode ${mode.textContent}, location ${locState.textContent}.`;
+  addFeed(msg,true); return;
  }
 
- addFeed("I can answer distance-to-town questions, find gas, coffee, food, parks/scenic stops, or give a stop recommendation. Try: “How close am I to Brookville?” or “Find coffee near me.”",true);
+ addFeed("I can answer distance-to-town questions, help with stop timing, or open reliable Maps searches for gas, coffee, food, and scenic breaks. Try: “How close am I to Brookville?”",true);
 }
 
 document.getElementById("startDrive").onclick=startDrive;
@@ -259,7 +230,7 @@ document.getElementById("speakBtn").onclick=()=>{if(session.lastMsg)speakText(se
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR){const rec=new SR();rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;document.getElementById("voiceBtn").onclick=()=>{voiceStatus.textContent="Listening...";rec.start();};rec.onresult=e=>{const t=e.results[0][0].transcript;voiceStatus.textContent=`Heard: ${t}`;ask.value=t;answer(t);};rec.onerror=e=>voiceStatus.textContent=`Voice error: ${e.error}. Try typing instead.`;}else{document.getElementById("voiceBtn").disabled=true;document.getElementById("voiceBtn").textContent="🎙️ Voice not supported";}
 setInterval(update,60000);
-addFeed("Tandee ready. This version answers direct questions first.",false);
+addFeed("Tandee ready. This version avoids fragile live lookups and uses Google Maps for exact places.",false);
 </script>
 </body>
 </html>
