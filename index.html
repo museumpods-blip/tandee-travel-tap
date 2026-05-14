@@ -1,107 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tandee Travel Tap GPS</title>
-<meta name="description" content="A GPS-aware prototype pocket travel concierge for gas, coffee, food, scenic stops, and local help." />
-<meta name="theme-color" content="#08111f" />
-<link rel="manifest" href="manifest.json" />
-<link rel="apple-touch-icon" href="icon-192.png" />
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tandee Travel Companion</title>
+<meta name="theme-color" content="#08111f">
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#08111f;color:#f7fafc}
-.app{max-width:860px;margin:0 auto;padding:18px}
-.hero{padding:24px;border-radius:26px;background:radial-gradient(circle at top right,rgba(255,211,106,.22),transparent 35%),linear-gradient(135deg,#10233f,#0b1628);border:1px solid rgba(255,255,255,.12);box-shadow:0 14px 36px rgba(0,0,0,.32)}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#08111f;color:#f4f7fb}
+.app{max-width:920px;margin:0 auto;padding:18px}
+.hero{padding:24px;border-radius:26px;background:radial-gradient(circle at top right,rgba(255,211,106,.22),transparent 35%),linear-gradient(135deg,#122744,#0b1628);border:1px solid rgba(255,255,255,.12)}
 .badge{display:inline-block;color:#ffd36a;border:1px solid rgba(255,211,106,.5);border-radius:999px;padding:7px 11px;font-size:12px;letter-spacing:1.5px;font-weight:900;margin-bottom:12px}
-h1{margin:0 0 10px;font-size:clamp(38px,8vw,66px);line-height:1}
-.hero p{margin:0;color:#d2deec;line-height:1.55;font-size:18px}
-.panel{margin-top:16px;padding:18px;border-radius:22px;background:#0f1c30;border:1px solid rgba(255,255,255,.11)}
-.panel h2{margin:0 0 10px;font-size:24px}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-button{border:0;border-radius:15px;padding:13px 14px;font-weight:900;cursor:pointer;font-size:15px}
-.choice{background:#10233f;color:#f7fafc;border:1px solid rgba(255,255,255,.13)}
-.choice.active{background:#ffd36a;color:#111827}
-.gold{background:#ffd36a;color:#111827}
-.blue{background:#70c7ff;color:#061522}
-.dark{background:#263a59;color:#fff}
-.green{background:#2bd576;color:#07120b}
-.voice-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
+h1{margin:0 0 10px;font-size:clamp(40px,8vw,66px);line-height:1}
+.hero p{margin:0;line-height:1.55;color:#d4dfec;font-size:18px}
+.panel{margin-top:16px;padding:18px;border-radius:22px;background:#0f1c30;border:1px solid rgba(255,255,255,.09)}
+.panel h2{margin:0 0 12px;font-size:24px}
+.controls,.state-grid,.quick-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.controls{grid-template-columns:repeat(3,1fr)}
+button{border:0;padding:14px;border-radius:14px;font-weight:900;cursor:pointer;font-size:15px}
+.start{background:#2bd576;color:#07120b}.pause{background:#ffd36a;color:#111827}.end{background:#ff6a6a;color:#fff}.blue{background:#70c7ff;color:#061522}.dark{background:#263a59;color:#fff}.quick{background:#10233f;color:#fff;border:1px solid rgba(255,255,255,.12)}
+.state-card{padding:16px;border-radius:18px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08)}
+.state-card h3{margin:0 0 6px;font-size:13px;color:#a9bad1;text-transform:uppercase;letter-spacing:1px}
+.state-card p{margin:0;font-size:22px;font-weight:800}
+.ask-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
 input{width:100%;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:#101d31;color:#fff;font-size:16px}
-.status{color:#a9bad1;font-size:13px;margin-top:8px;line-height:1.35}
-.answer{margin-top:12px;padding:16px;border-radius:18px;background:#122844;border:1px solid rgba(255,255,255,.12);line-height:1.55;color:#e8f1fb}
-.cards{display:grid;gap:12px;margin-top:14px}
-.card{padding:16px;border-radius:20px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09)}
-.card h3{margin:0 0 6px;font-size:21px}
-.meta{color:#a9bad1;margin-bottom:8px;font-size:14px}
-.card p{color:#d2deec;line-height:1.45;margin:7px 0}
-.card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.card-actions a{ text-decoration:none; display:inline-block; border-radius:13px; padding:11px 12px; font-weight:900}
+.feed{display:grid;gap:12px;margin-top:14px}
+.feed-item{padding:16px;border-radius:18px;background:#122844;border:1px solid rgba(255,255,255,.08);line-height:1.5}
+.feed-time{font-size:12px;color:#9fb0c6;margin-bottom:6px}
+.status{margin-top:12px;color:#a9bad1;font-size:14px;line-height:1.4}
 .notice{margin-top:16px;padding:14px;border-radius:18px;background:#2a0f16;border:1px solid rgba(255,99,132,.35);color:#ffe1e7;line-height:1.45}
-.small{font-size:13px;color:#a9bad1;line-height:1.4}
 footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24px 0 8px}
-@media(max-width:700px){.grid,.voice-row{grid-template-columns:1fr}.app{padding:14px}}
+@media(max-width:700px){.controls,.state-grid,.ask-row,.quick-grid{grid-template-columns:1fr}.app{padding:14px}}
 </style>
 </head>
-
 <body>
 <main class="app">
 <header class="hero">
-<div class="badge">GPS-AWARE TRAVEL CONCIERGE</div>
-<h1>Tandee Travel Tap</h1>
-<p>Use your location to find real nearby gas, coffee, food, scenic stops, and useful places. No API key required for this prototype.</p>
+<div class="badge">JOURNEY-AWARE TRAVEL COMPANION</div>
+<h1>Tandee Travel Companion</h1>
+<p>This prototype does not replace Google Maps. It watches the journey, tracks travel state, and gives calm contextual suggestions when they matter.</p>
 </header>
 
 <section class="panel">
-<h2>1. Location</h2>
-<div class="grid">
-<button class="green" id="gpsBtn">📍 Use My Location</button>
-<button class="choice" id="duboisBtn">Test: DuBois, PA</button>
+<h2>Drive Session</h2>
+<div class="controls">
+<button class="start" id="startDrive">Start Drive</button>
+<button class="pause" id="pauseDrive">Pause</button>
+<button class="end" id="endDrive">End Drive</button>
 </div>
-<div class="status" id="locationStatus">Location not set yet. Tap “Use My Location” or use DuBois test mode.</div>
-<p class="small">GPS works best after this is uploaded to HTTPS, like Netlify. Some browsers block location from local files.</p>
+<div class="status" id="gpsStatus">GPS not active.</div>
 </section>
 
 <section class="panel">
-<h2>2. Ask Tandee</h2>
-<div class="grid">
-<button class="choice quick" data-query="gas station nearby">Gas nearby</button>
-<button class="choice quick" data-query="coffee nearby">Coffee nearby</button>
-<button class="choice quick" data-query="quick food nearby">Food nearby</button>
-<button class="choice quick" data-query="scenic stop nearby">Scenic stop</button>
-<button class="choice quick" data-query="kids need a break nearby">Kids break</button>
-<button class="choice quick" data-query="local help nearby">Local help</button>
+<h2>Travel State</h2>
+<div class="state-grid">
+<div class="state-card"><h3>Drive Time</h3><p id="driveTime">0m</p></div>
+<div class="state-card"><h3>Fatigue</h3><p id="fatigueState">Low</p></div>
+<div class="state-card"><h3>Travel Mode</h3><p id="travelMode">Idle</p></div>
+<div class="state-card"><h3>Weather</h3><p id="weatherState">Unknown</p></div>
 </div>
-
-<div class="voice-row">
-<input id="queryInput" placeholder="Example: Hey Tandee, gas and coffee nearby" />
-<button class="gold" id="askBtn">Ask</button>
-</div>
-
-<div class="voice-row">
-<button class="blue" id="voiceBtn">🎙️ Push to Talk</button>
-<button class="dark" id="speakBtn">🔊 Speak Answer</button>
-</div>
-
-<div class="status" id="voiceStatus">Voice input works in Chrome/Edge if speech recognition is available. Text input always works.</div>
-<div class="answer" id="answerBox">Set your location, then ask Tandee for something nearby.</div>
 </section>
 
 <section class="panel">
-<h2>Live nearby results</h2>
-<div class="cards" id="cards"></div>
+<h2>Ask Tandee</h2>
+<div class="quick-grid">
+<button class="quick" data-question="Should I stop soon?">Should I stop soon?</button>
+<button class="quick" data-question="What should I watch for ahead?">What should I watch for?</button>
+<button class="quick" data-question="I need coffee soon.">Coffee soon</button>
+<button class="quick" data-question="Give me a calm travel update.">Travel update</button>
+</div>
+<div class="ask-row">
+<input id="askInput" placeholder="Example: Hey Tandee, should I stop soon?">
+<button class="blue" id="askBtn">Ask</button>
+</div>
+<div class="ask-row">
+<button class="dark" id="voiceBtn">🎙️ Push to Talk</button>
+<button class="dark" id="speakBtn">🔊 Speak Last</button>
+</div>
+<div class="status" id="voiceStatus">Voice input works in Chrome/Edge if supported. Text input always works.</div>
+</section>
+
+<section class="panel">
+<h2>Tandee Feed</h2>
+<div class="feed" id="tandeeFeed"></div>
 </section>
 
 <section class="notice">
-<strong>Prototype note:</strong> This uses OpenStreetMap/Overpass public data. It may be slower or miss places. Later versions can use Google Places, HERE, Mapbox, or a paid Places API for stronger results.
+<strong>Prototype note:</strong> This version is about journey awareness, not live navigation. Weather is simulated for now. GPS works best from HTTPS, such as GitHub Pages.
 </section>
 
-<footer>
-Tandee Travel Tap is a concierge layer, not a navigation system. Use Google Maps or Apple Maps for actual driving directions.
-</footer>
+<footer>Tandee Travel Companion is an AI travel cognition prototype. Use Google Maps or Apple Maps for turn-by-turn navigation.</footer>
 </main>
 
-<script src="app.js"></script>
+<script>
+let session={active:false,paused:false,start:null,pauseStart:null,pausedMs:0,watchId:null,lastPrompt:0,lastMsg:"",mode:"Idle",weather:"Unknown"};
+const feed=document.getElementById("tandeeFeed"), driveTime=document.getElementById("driveTime"), fatigue=document.getElementById("fatigueState"), mode=document.getElementById("travelMode"), weather=document.getElementById("weatherState"), gps=document.getElementById("gpsStatus"), ask=document.getElementById("askInput"), voiceStatus=document.getElementById("voiceStatus");
+
+function esc(t){return String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
+function addFeed(msg,speak=false){const time=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}); const div=document.createElement("div"); div.className="feed-item"; div.innerHTML=`<div class="feed-time">${time}</div><div>${esc(msg)}</div>`; feed.prepend(div); session.lastMsg=msg; if(speak)speakText(msg);}
+function speakText(text){if(!("speechSynthesis" in window))return; speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.rate=.96; speechSynthesis.speak(u);}
+function setWeather(){const w=["Clear","Cloudy","Light rain possible","Good visibility"]; session.weather=w[Math.floor(Math.random()*w.length)]; weather.textContent=session.weather;}
+
+function startGPS(){
+ if(!navigator.geolocation){gps.textContent="GPS not supported.";return;}
+ if(session.watchId) navigator.geolocation.clearWatch(session.watchId);
+ session.watchId=navigator.geolocation.watchPosition(pos=>{
+   const sp=pos.coords.speed;
+   if(sp==null) session.mode="Location Active";
+   else if(sp>24) session.mode="Highway Travel";
+   else if(sp>6) session.mode="Local Driving";
+   else session.mode="Stopped / Slow";
+   mode.textContent=session.mode;
+   gps.textContent=`GPS active — ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+ },err=>{gps.textContent=`GPS error: ${err.message}`;},{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
+}
+
+function startDrive(){if(session.active)return; const now=Date.now(); session.active=true; session.paused=false; session.start=now; session.pausedMs=0; session.lastPrompt=now; setWeather(); startGPS(); addFeed("Tandee travel session started. I’ll stay quiet unless something seems useful.",true);}
+function pauseDrive(){if(!session.active)return; if(!session.paused){session.paused=true; session.pauseStart=Date.now(); addFeed("Drive session paused.",false);} else {session.paused=false; session.pausedMs+=Date.now()-session.pauseStart; addFeed("Drive session resumed.",false);}}
+function endDrive(){if(session.watchId)navigator.geolocation.clearWatch(session.watchId); addFeed("Drive session ended.",false); session={active:false,paused:false,start:null,pauseStart:null,pausedMs:0,watchId:null,lastPrompt:0,lastMsg:"",mode:"Idle",weather:"Unknown"}; driveTime.textContent="0m"; fatigue.textContent="Low"; mode.textContent="Idle"; weather.textContent="Unknown"; gps.textContent="GPS not active.";}
+
+function update(){
+ if(!session.active||session.paused||!session.start)return;
+ const elapsed=Math.floor((Date.now()-session.start-session.pausedMs)/60000);
+ const h=Math.floor(elapsed/60), m=elapsed%60; driveTime.textContent=h?`${h}h ${m}m`:`${m}m`;
+ let f="Low"; if(elapsed>=90)f="Moderate"; if(elapsed>=180)f="High"; fatigue.textContent=f;
+ if(Date.now()-session.lastPrompt>900000){suggest(elapsed,f); session.lastPrompt=Date.now();}
+}
+
+function suggest(elapsed,f){
+ const s=[];
+ if(elapsed>=90)s.push("You’ve been driving awhile. Might be worth stretching soon.");
+ if(elapsed>=120)s.push("Coffee now may be easier than waiting until the next quiet stretch.");
+ if(f==="High")s.push("This may be a good time for a longer break if possible.");
+ if(session.weather.includes("rain"))s.push("Rain may affect the next part of the drive. Indoor stops might be smarter.");
+ const hr=new Date().getHours();
+ if(hr>=18&&hr<21)s.push("Sunset timing may be good for a scenic stop if one is nearby.");
+ if(hr>=21||hr<5)s.push("Late-night travel can mean fewer open food and fuel options. Think one stop ahead.");
+ if(!s.length)s.push("Travel conditions look steady right now. I’ll stay quiet unless something changes.");
+ addFeed(s[Math.floor(Math.random()*s.length)],true);
+}
+
+function answer(q){
+ q=q.toLowerCase(); let elapsed=session.active&&session.start?Math.floor((Date.now()-session.start-session.pausedMs)/60000):0; let a="";
+ if(q.includes("stop")) a=elapsed>=90?"Yes, I’d start thinking about a stop soon. You’ve been driving long enough that coffee, fuel, or a stretch break would make sense.":"Not urgently. Your drive time is still low, but if you see an easy stop ahead, it may be worth using before the route gets sparse.";
+ else if(q.includes("coffee")) a="I’d treat coffee as a timing decision, not just a search. If the next stretch looks rural or late in the day, stopping sooner is usually smarter.";
+ else if(q.includes("watch")) a="Watch for three things: fuel gaps, weather changes, and whether food options thin out as you leave larger exits.";
+ else if(q.includes("update")) a=`Current travel state: drive time ${driveTime.textContent}, fatigue ${fatigue.textContent}, mode ${mode.textContent}, weather ${weather.textContent}.`;
+ else a="I’m thinking less like a map and more like a road companion: timing, fatigue, weather, sparse stretches, and whether a stop now is smarter than waiting.";
+ addFeed(a,true);
+}
+
+document.getElementById("startDrive").onclick=startDrive;
+document.getElementById("pauseDrive").onclick=pauseDrive;
+document.getElementById("endDrive").onclick=endDrive;
+document.getElementById("askBtn").onclick=()=>{if(ask.value.trim())answer(ask.value.trim())};
+ask.onkeydown=e=>{if(e.key==="Enter"&&ask.value.trim())answer(ask.value.trim())};
+document.querySelectorAll(".quick").forEach(b=>b.onclick=()=>{ask.value=b.dataset.question;answer(b.dataset.question)});
+document.getElementById("speakBtn").onclick=()=>{if(session.lastMsg)speakText(session.lastMsg)};
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){const rec=new SR(); rec.lang="en-US"; rec.interimResults=false; rec.maxAlternatives=1; document.getElementById("voiceBtn").onclick=()=>{voiceStatus.textContent="Listening..."; rec.start();}; rec.onresult=e=>{const t=e.results[0][0].transcript; voiceStatus.textContent=`Heard: ${t}`; ask.value=t; answer(t);}; rec.onerror=e=>voiceStatus.textContent=`Voice error: ${e.error}. Try typing instead.`;} else {document.getElementById("voiceBtn").disabled=true; document.getElementById("voiceBtn").textContent="🎙️ Voice not supported";}
+
+setInterval(update,60000);
+addFeed("Tandee ready. Start a drive session to begin journey monitoring.",false);
+</script>
 </body>
 </html>
