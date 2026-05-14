@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tandee Travel Mode v4</title>
+<title>Tandee Travel Mode v5 Hands-Free</title>
 <meta name="theme-color" content="#08111f">
 <style>
 *{box-sizing:border-box}
@@ -18,6 +18,8 @@ h1{margin:0 0 10px;font-size:clamp(38px,8vw,62px);line-height:1}
 .grid,.quick-grid,.thread-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 button{border:0;padding:14px;border-radius:14px;font-weight:900;cursor:pointer;font-size:15px}
 .green{background:#2bd576;color:#07120b}.blue{background:#70c7ff;color:#061522}.gold{background:#ffd36a;color:#111827}.dark{background:#263a59;color:#fff}.red{background:#ff6a6a;color:#fff}.quick{background:#10233f;color:#fff;border:1px solid rgba(255,255,255,.12)}
+.listening{background:#ff3b7f;color:#fff;animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,127,.55)}70%{box-shadow:0 0 0 10px rgba(255,59,127,0)}100%{box-shadow:0 0 0 0 rgba(255,59,127,0)}}
 .ask-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
 input{width:100%;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:#101d31;color:#fff;font-size:16px}
 .thread-card{padding:15px;border-radius:18px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08)}
@@ -40,9 +42,9 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 <body>
 <main class="app">
 <header class="hero">
-<div class="badge">CURRENT LOCATION → DESTINATION</div>
+<div class="badge">HANDS-FREE TRAVEL MODE</div>
 <h1>Tandee Travel Mode</h1>
-<p>Tap Start. Tandee gets your current location, sets it as origin, then asks where you’re going.</p>
+<p>Start Travel Mode, then start Hands-Free. Say “Hey Tandee…” and ask for destination, route, hotels, food, gas, flights, or rental cars.</p>
 </header>
 
 <section class="panel">
@@ -52,6 +54,15 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 <button class="red" id="endBtn">End Trip</button>
 </div>
 <div class="status" id="gpsStatus">GPS not active. Tap Start Travel Mode.</div>
+</section>
+
+<section class="panel">
+<h2>Hands-Free Voice</h2>
+<div class="grid">
+<button class="gold" id="handsFreeBtn">Start Hands-Free</button>
+<button class="dark" id="stopHandsFreeBtn">Stop Listening</button>
+</div>
+<div class="status" id="voiceStatus">Say: “Hey Tandee, find gas near me” or “Hey Tandee, we’re going to Pittsburgh.”</div>
 </section>
 
 <section class="panel">
@@ -70,7 +81,6 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 <input id="destinationInput" placeholder="Where are we going? Example: Pittsburgh, LAX, Myrtle Beach, Brookville...">
 <button class="gold" id="setDestinationBtn">Set Destination</button>
 </div>
-<div class="status">After GPS starts, Tandee will ask this automatically. You can type or use voice.</div>
 </section>
 
 <section class="panel">
@@ -90,10 +100,9 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 </div>
 
 <div class="ask-row">
-<button class="dark" id="voiceBtn">🎙️ Push to Talk</button>
+<button class="dark" id="singleVoiceBtn">🎙️ Push to Talk Once</button>
 <button class="dark" id="speakBtn">🔊 Speak Last</button>
 </div>
-<div class="status" id="voiceStatus">If Tandee is waiting for destination, voice/text will set destination first.</div>
 </section>
 
 <section class="panel">
@@ -107,10 +116,10 @@ footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24
 </section>
 
 <section class="notice">
-<strong>UX rule:</strong> The trip begins with location first. Destination comes second. No setup form.
+<strong>Browser reality:</strong> true always-on wake word is limited in mobile browsers. This version uses continuous/semi-continuous browser speech recognition where supported. Android Chrome is usually better than iPhone Safari.
 </section>
 
-<footer>Tandee Travel Mode v4 — current location first, then destination prompt.</footer>
+<footer>Tandee Travel Mode v5 — hands-free prototype.</footer>
 </main>
 
 <script>
@@ -133,6 +142,13 @@ lastMovedAt:null,
 arrivalPrompted:false
 };
 
+let voice={
+handsFree:false,
+recognition:null,
+speaking:false,
+restartTimer:null
+};
+
 const knownPlaces={
 "lax":{name:"Los Angeles International Airport (LAX)",lat:33.9416,lon:-118.4085,code:"LAX"},
 "los angeles":{name:"Los Angeles, CA",lat:34.0522,lon:-118.2437},
@@ -151,22 +167,39 @@ const ask=document.getElementById("askInput");
 const destinationInput=document.getElementById("destinationInput");
 const gpsStatus=document.getElementById("gpsStatus");
 const voiceStatus=document.getElementById("voiceStatus");
+const handsFreeBtn=document.getElementById("handsFreeBtn");
 
 function esc(t){return String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
-function speakText(text){if(!("speechSynthesis" in window))return; speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.rate=.96; speechSynthesis.speak(u);}
-function addFeed(msg,speak=true){const time=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}); const div=document.createElement("div"); div.className="feed-item"; div.innerHTML=`<div class="feed-time">${time}</div><div>${esc(msg)}</div>`; feed.prepend(div); trip.lastMessage=msg; if(speak)speakText(msg);}
+function speakText(text, afterSpeak){
+if(!("speechSynthesis" in window)){ if(afterSpeak)afterSpeak(); return; }
+speechSynthesis.cancel();
+voice.speaking=true;
+const u=new SpeechSynthesisUtterance(text);
+u.rate=.96;
+u.onend=()=>{voice.speaking=false; if(afterSpeak)afterSpeak(); if(voice.handsFree) scheduleRestartListening();};
+u.onerror=()=>{voice.speaking=false; if(afterSpeak)afterSpeak(); if(voice.handsFree) scheduleRestartListening();};
+speechSynthesis.speak(u);
+}
+function addFeed(msg,speak=true){
+const time=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+const div=document.createElement("div");
+div.className="feed-item";
+div.innerHTML=`<div class="feed-time">${time}</div><div>${esc(msg)}</div>`;
+feed.prepend(div);
+trip.lastMessage=msg;
+if(speak)speakText(msg);
+}
 function updateUI(){
 document.getElementById("originView").textContent=trip.origin||"Not set";
 document.getElementById("destinationView").textContent=trip.destination|| (trip.awaitingDestination?"Where are we going?":"Waiting");
 document.getElementById("timingView").textContent=trip.timing||"Not set";
 document.getElementById("nextView").textContent=trip.next||"Ask Tandee";
-localStorage.setItem("tandeeDestinationPromptTrip",JSON.stringify({...trip,watchId:null}));
+localStorage.setItem("tandeeHandsFreeTrip",JSON.stringify({...trip,watchId:null}));
 }
 function loadTrip(){
-try{const saved=JSON.parse(localStorage.getItem("tandeeDestinationPromptTrip")||"{}"); trip={...trip,...saved,watchId:null};}catch(e){}
+try{const saved=JSON.parse(localStorage.getItem("tandeeHandsFreeTrip")||"{}"); trip={...trip,...saved,watchId:null};}catch(e){}
 updateUI();
 }
-function setNext(text){trip.next=text;updateUI();}
 function openNow(url){const w=window.open(url,"_blank"); if(!w)addFeed("Browser blocked the automatic open. Use the action card below.",true);}
 function renderCards(cardList){
 cards.innerHTML=cardList.map(card=>`
@@ -224,13 +257,15 @@ updateUI();
 
 function detectPlace(q){
 const low=q.toLowerCase();
-for(const key in knownPlaces){
- if(low.includes(key)) return knownPlaces[key];
-}
+for(const key in knownPlaces){ if(low.includes(key)) return knownPlaces[key]; }
 return null;
 }
 function cleanDestinationText(q){
 let s=q.trim();
+s=s.replace(/^hey tandee[, ]*/i,"");
+s=s.replace(/^tandee[, ]*/i,"");
+s=s.replace(/^we'?re going to /i,"");
+s=s.replace(/^we are going to /i,"");
 s=s.replace(/^i'?m going to /i,"");
 s=s.replace(/^i am going to /i,"");
 s=s.replace(/^headed to /i,"");
@@ -269,7 +304,7 @@ trip.awaitingDestination=false;
 trip.next="Route, hotel, flight, food, or car?";
 destinationInput.value=trip.destination;
 updateUI();
-addFeed(`Destination set to ${trip.destination}${trip.timing?" for "+trip.timing:""}. What do you need next: route, hotel, flights, food, or rental car?`,true);
+addFeed(`Destination set to ${trip.destination}${trip.timing?" for "+trip.timing:""}. What do you need next?`,true);
 renderCards([{title:"Destination Set",meta:trip.destination,body:"Tandee will now use this as the active destination.",links:[{label:"Open destination in Maps",href:mapsDestinationUrl(),cls:"blue"}]}]);
 }
 
@@ -278,7 +313,6 @@ const R=3958.8,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
 const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
 return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
-
 function checkArrival(){
 if(!trip.active||trip.arrivalPrompted||!trip.destinationLat||!trip.currentLat)return;
 const d=distanceMiles(trip.currentLat,trip.currentLon,trip.destinationLat,trip.destinationLon);
@@ -315,18 +349,20 @@ setDestinationFromText(q);
 return;
 }
 
-if((low.includes("going to")||low.includes("headed to")||low.includes("driving to")||low.includes("trip to"))){
-setDestinationFromText(q);
-return;
+if(low.includes("end trip")||low.includes("stop trip")){
+endTrip(); return;
 }
 
-if(low.includes("route")||low.includes("directions")||low.includes("navigate")){
+if((low.includes("going to")||low.includes("headed to")||low.includes("driving to")||low.includes("trip to"))){
+setDestinationFromText(q); return;
+}
+
+if(low.includes("show map")||low.includes("show me the map")||low.includes("map")||low.includes("directions")||low.includes("navigate")||low.includes("route")){
 if(!trip.destination){addFeed("Set a destination first. Where are we going?",true); trip.awaitingDestination=true; updateUI(); return;}
 const url=mapsDestinationUrl();
 addFeed(`Opening directions to ${trip.destination}.`,true);
-renderCards([{title:"Directions",meta:trip.destination,body:"Maps has the live route and ETA.",links:[{label:"Open Directions",href:url,cls:"blue"}]}]);
-openNow(url);
-return;
+renderCards([{title:"Directions",meta:trip.destination,body:"Maps has the live route and ETA. Return to Tandee when you want planning help.",links:[{label:"Open Directions",href:url,cls:"blue"}]}]);
+openNow(url); return;
 }
 
 if(low.includes("flight")){
@@ -335,30 +371,27 @@ let from=detectAirportOrigin(q)||"PGH";
 let to=detectAirportDestination(q)||airportCodeFromDestination()||trip.destination;
 const url=flightsUrl(from,to);
 addFeed(`Opening flights from ${from} to ${to}${trip.timing?" for "+trip.timing:""}. After flight timing, I’d handle hotel, car, and dinner.`,true);
-setNext("Hotel or rental car?");
+trip.next="Hotel or rental car?"; updateUI();
 renderCards([{title:"Flight Search",meta:`${from} → ${to}`,body:"Compare nonstop, price, departure time, and arrival window.",links:[{label:"Open Google Flights",href:url,cls:"blue"}]}]);
-openNow(url);
-return;
+openNow(url); return;
 }
 
 if(low.includes("hotel")||low.includes("motel")||low.includes("lodging")||low.includes("stay")){
 if(!trip.destination){addFeed("Where should I search for hotels?",true); trip.awaitingDestination=true; updateUI(); return;}
 const url=hotelsUrl(trip.destination);
 addFeed(`Opening hotels near ${trip.destination}. Check parking, check-in time, and distance from what you’re doing first.`,true);
-setNext("Rental car or dinner?");
+trip.next="Rental car or dinner?"; updateUI();
 renderCards([{title:"Hotel Search",meta:trip.destination,body:"Use this after your arrival window is known.",links:[{label:"Open Hotel Search",href:url,cls:"blue"}]}]);
-openNow(url);
-return;
+openNow(url); return;
 }
 
 if(low.includes("rental")||low.includes("car rental")||low.includes("rent a car")){
 if(!trip.destination){addFeed("Where should I search for rental cars?",true); trip.awaitingDestination=true; updateUI(); return;}
 const url=carsUrl(trip.destination);
 addFeed(`Opening rental cars near ${trip.destination}. Match pickup time with your arrival and hotel check-in.`,true);
-setNext("Hotel or dinner?");
+trip.next="Hotel or dinner?"; updateUI();
 renderCards([{title:"Rental Car Search",meta:trip.destination,body:"Check pickup location, hours, fees, and return timing.",links:[{label:"Open Rental Cars",href:url,cls:"blue"}]}]);
-openNow(url);
-return;
+openNow(url); return;
 }
 
 if(low.includes("dinner")||low.includes("restaurant")||low.includes("reservation")||low.includes("eat")){
@@ -366,10 +399,9 @@ const where=trip.destination||"near me";
 const t=extractTime(q)||"";
 const url=dinnerUrl(where,t);
 addFeed(`Opening dinner options near ${where}${t?" around "+t:""}. Choose based on travel timing and parking, not just rating.`,true);
-setNext("Confirm timing");
+trip.next="Confirm timing"; updateUI();
 renderCards([{title:"Dinner Search",meta:`${where} ${t}`,body:"Look for reservation availability and whether it fits your arrival window.",links:[{label:"Open Dinner Search",href:url,cls:"blue"}]}]);
-openNow(url);
-return;
+openNow(url); return;
 }
 
 if(low.includes("gas")||low.includes("coffee")||low.includes("pharmacy")||low.includes("hospital")||low.includes("walmart")||low.includes("store")||low.includes("campground")||low.includes("bathroom")||low.includes("restroom")){
@@ -377,26 +409,18 @@ const search=cleanNearMe(q);
 const url=mapsSearchUrl(search);
 addFeed(`Opening Maps for ${search}. I’ll treat this as a road-stop decision, not just a search result.`,true);
 renderCards([{title:"Road Stop Search",meta:search,body:"Pick the easiest stop based on timing, parking, hours, and the next part of the journey.",links:[{label:"Open in Maps",href:url,cls:"blue"}]}]);
-openNow(url);
-return;
+openNow(url); return;
 }
 
 if(low.includes("next")||low.includes("plan")){
-addFeed(nextStepMessage(),true);
-return;
+addFeed(nextStepMessage(),true); return;
 }
 
 addFeed("Tell me where we’re going, or ask for route, hotel, flights, rental car, dinner, gas, coffee, or road stops.",true);
 }
 
-function detectAirportOrigin(q){
-const m=q.toUpperCase().match(/FROM\s+([A-Z]{3})/);
-return m?m[1]:null;
-}
-function detectAirportDestination(q){
-const m=q.toUpperCase().match(/(?:TO|FOR)\s+([A-Z]{3})/);
-return m?m[1]:null;
-}
+function detectAirportOrigin(q){const m=q.toUpperCase().match(/FROM\s+([A-Z]{3})/); return m?m[1]:null;}
+function detectAirportDestination(q){const m=q.toUpperCase().match(/(?:TO|FOR)\s+([A-Z]{3})/); return m?m[1]:null;}
 function airportCodeFromDestination(){
 if(trip.destination.includes("LAX"))return"LAX";
 if(trip.destination.includes("PGH")||trip.destination.includes("Pittsburgh"))return"PGH";
@@ -420,6 +444,87 @@ if(!trip.timing)return`Destination is ${trip.destination}. Next step: tell me wh
 return`For ${trip.destination} ${trip.timing}, next step is route, hotel, rental car, dinner, or road stops.`;
 }
 
+/* HANDS-FREE VOICE */
+function initRecognition(){
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR)return null;
+const rec=new SR();
+rec.lang="en-US";
+rec.interimResults=false;
+rec.maxAlternatives=1;
+rec.continuous=true;
+rec.onresult=e=>{
+let transcript="";
+for(let i=e.resultIndex;i<e.results.length;i++){
+ if(e.results[i].isFinal) transcript+=e.results[i][0].transcript+" ";
+}
+transcript=transcript.trim();
+if(!transcript)return;
+voiceStatus.textContent=`Heard: ${transcript}`;
+handleVoiceTranscript(transcript);
+};
+rec.onerror=e=>{
+voiceStatus.textContent=`Voice error: ${e.error}.`;
+};
+rec.onend=()=>{
+if(voice.handsFree && !voice.speaking){
+ scheduleRestartListening();
+}
+};
+return rec;
+}
+function handleVoiceTranscript(text){
+const lower=text.toLowerCase().trim();
+let command="";
+if(lower.startsWith("hey tandee")){
+ command=text.replace(/^hey tandee[, ]*/i,"").trim();
+}else if(lower.startsWith("tandee")){
+ command=text.replace(/^tandee[, ]*/i,"").trim();
+}else if(trip.awaitingDestination){
+ command=text;
+}else{
+ voiceStatus.textContent=`Listening for “Hey Tandee…” Heard: ${text}`;
+ return;
+}
+if(!command){
+ addFeed("Yes?",true);
+ return;
+}
+ask.value=command;
+answer(command);
+}
+function startHandsFree(){
+if(!voice.recognition)voice.recognition=initRecognition();
+if(!voice.recognition){
+voiceStatus.textContent="Speech recognition is not supported in this browser.";
+return;
+}
+voice.handsFree=true;
+handsFreeBtn.classList.add("listening");
+handsFreeBtn.textContent="Listening for Hey Tandee...";
+voiceStatus.textContent="Hands-Free on. Say: Hey Tandee...";
+try{voice.recognition.start();}catch(e){scheduleRestartListening();}
+}
+function stopHandsFree(){
+voice.handsFree=false;
+handsFreeBtn.classList.remove("listening");
+handsFreeBtn.textContent="Start Hands-Free";
+voiceStatus.textContent="Hands-Free stopped.";
+if(voice.restartTimer)clearTimeout(voice.restartTimer);
+try{if(voice.recognition)voice.recognition.stop();}catch(e){}
+}
+function scheduleRestartListening(){
+if(!voice.handsFree)return;
+if(voice.restartTimer)clearTimeout(voice.restartTimer);
+voice.restartTimer=setTimeout(()=>{
+if(!voice.handsFree || voice.speaking)return;
+try{
+voice.recognition.start();
+voiceStatus.textContent="Listening for Hey Tandee...";
+}catch(e){}
+},700);
+}
+
 document.getElementById("startBtn").onclick=startTravel;
 document.getElementById("endBtn").onclick=endTrip;
 document.getElementById("setDestinationBtn").onclick=()=>setDestinationFromText(destinationInput.value);
@@ -428,20 +533,23 @@ document.getElementById("askBtn").onclick=()=>answer(ask.value);
 ask.onkeydown=e=>{if(e.key==="Enter")answer(ask.value)};
 document.querySelectorAll(".quick").forEach(b=>b.onclick=()=>{ask.value=b.dataset.question;answer(b.dataset.question)});
 document.getElementById("speakBtn").onclick=()=>{if(trip.lastMessage)speakText(trip.lastMessage)};
+document.getElementById("handsFreeBtn").onclick=startHandsFree;
+document.getElementById("stopHandsFreeBtn").onclick=stopHandsFree;
 
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(SR){
-const rec=new SR();rec.lang="en-US";rec.interimResults=false;rec.maxAlternatives=1;
-document.getElementById("voiceBtn").onclick=()=>{voiceStatus.textContent="Listening...";rec.start();};
-rec.onresult=e=>{const t=e.results[0][0].transcript;voiceStatus.textContent=`Heard: ${t}`; if(trip.awaitingDestination){destinationInput.value=t;setDestinationFromText(t);}else{ask.value=t;answer(t);}};
-rec.onerror=e=>voiceStatus.textContent=`Voice error: ${e.error}. Try typing instead.`;
-}else{
-document.getElementById("voiceBtn").disabled=true;
-document.getElementById("voiceBtn").textContent="🎙️ Voice not supported";
-}
+document.getElementById("singleVoiceBtn").onclick=()=>{
+const rec=initRecognition();
+if(!rec){voiceStatus.textContent="Speech recognition is not supported.";return;}
+rec.continuous=false;
+rec.onresult=e=>{
+const t=e.results[0][0].transcript;
+voiceStatus.textContent=`Heard: ${t}`;
+if(trip.awaitingDestination){destinationInput.value=t;setDestinationFromText(t);}else{ask.value=t;answer(t);}
+};
+try{rec.start(); voiceStatus.textContent="Listening once...";}catch(e){}
+};
 
 loadTrip();
-addFeed("Tandee ready. Tap Start Travel Mode and I’ll get your current location, then ask where we’re going.",false);
+addFeed("Tandee ready. Tap Start Travel Mode, then Start Hands-Free. Say “Hey Tandee” before commands.",false);
 </script>
 </body>
 </html>
