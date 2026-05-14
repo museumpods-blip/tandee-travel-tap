@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tandee Travel Tap GPS</title>
+<meta name="description" content="A GPS-aware prototype pocket travel concierge for gas, coffee, food, scenic stops, and local help." />
+<meta name="theme-color" content="#08111f" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#08111f;color:#f7fafc}
+.app{max-width:860px;margin:0 auto;padding:18px}
+.hero{padding:24px;border-radius:26px;background:radial-gradient(circle at top right,rgba(255,211,106,.22),transparent 35%),linear-gradient(135deg,#10233f,#0b1628);border:1px solid rgba(255,255,255,.12);box-shadow:0 14px 36px rgba(0,0,0,.32)}
+.badge{display:inline-block;color:#ffd36a;border:1px solid rgba(255,211,106,.5);border-radius:999px;padding:7px 11px;font-size:12px;letter-spacing:1.5px;font-weight:900;margin-bottom:12px}
+h1{margin:0 0 10px;font-size:clamp(38px,8vw,66px);line-height:1}
+.hero p{margin:0;color:#d2deec;line-height:1.55;font-size:18px}
+.panel{margin-top:16px;padding:18px;border-radius:22px;background:#0f1c30;border:1px solid rgba(255,255,255,.11)}
+.panel h2{margin:0 0 10px;font-size:24px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+button{border:0;border-radius:15px;padding:13px 14px;font-weight:900;cursor:pointer;font-size:15px}
+.choice{background:#10233f;color:#f7fafc;border:1px solid rgba(255,255,255,.13)}
+.choice.active{background:#ffd36a;color:#111827}
+.gold{background:#ffd36a;color:#111827}
+.blue{background:#70c7ff;color:#061522}
+.dark{background:#263a59;color:#fff}
+.green{background:#2bd576;color:#07120b}
+.voice-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
+input{width:100%;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:#101d31;color:#fff;font-size:16px}
+.status{color:#a9bad1;font-size:13px;margin-top:8px;line-height:1.35}
+.answer{margin-top:12px;padding:16px;border-radius:18px;background:#122844;border:1px solid rgba(255,255,255,.12);line-height:1.55;color:#e8f1fb}
+.cards{display:grid;gap:12px;margin-top:14px}
+.card{padding:16px;border-radius:20px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09)}
+.card h3{margin:0 0 6px;font-size:21px}
+.meta{color:#a9bad1;margin-bottom:8px;font-size:14px}
+.card p{color:#d2deec;line-height:1.45;margin:7px 0}
+.card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.card-actions a{ text-decoration:none; display:inline-block; border-radius:13px; padding:11px 12px; font-weight:900}
+.notice{margin-top:16px;padding:14px;border-radius:18px;background:#2a0f16;border:1px solid rgba(255,99,132,.35);color:#ffe1e7;line-height:1.45}
+.small{font-size:13px;color:#a9bad1;line-height:1.4}
+footer{text-align:center;color:#9fb0c6;font-size:13px;line-height:1.45;margin:24px 0 8px}
+@media(max-width:700px){.grid,.voice-row{grid-template-columns:1fr}.app{padding:14px}}
+</style>
+</head>
+
+<body>
+<main class="app">
+<header class="hero">
+<div class="badge">GPS-AWARE TRAVEL CONCIERGE</div>
+<h1>Tandee Travel Tap</h1>
+<p>Use your location to find real nearby gas, coffee, food, scenic stops, and useful places. No API key required for this prototype.</p>
+</header>
+
+<section class="panel">
+<h2>1. Location</h2>
+<div class="grid">
+<button class="green" id="gpsBtn">📍 Use My Location</button>
+<button class="choice" id="duboisBtn">Test: DuBois, PA</button>
+</div>
+<div class="status" id="locationStatus">Location not set yet. Tap “Use My Location” or use DuBois test mode.</div>
+<p class="small">GPS works best after this is uploaded to HTTPS, like Netlify. Some browsers block location from local files.</p>
+</section>
+
+<section class="panel">
+<h2>2. Ask Tandee</h2>
+<div class="grid">
+<button class="choice quick" data-query="gas station nearby">Gas nearby</button>
+<button class="choice quick" data-query="coffee nearby">Coffee nearby</button>
+<button class="choice quick" data-query="quick food nearby">Food nearby</button>
+<button class="choice quick" data-query="scenic stop nearby">Scenic stop</button>
+<button class="choice quick" data-query="kids need a break nearby">Kids break</button>
+<button class="choice quick" data-query="local help nearby">Local help</button>
+</div>
+
+<div class="voice-row">
+<input id="queryInput" placeholder="Example: Hey Tandee, gas and coffee nearby" />
+<button class="gold" id="askBtn">Ask</button>
+</div>
+
+<div class="voice-row">
+<button class="blue" id="voiceBtn">🎙️ Push to Talk</button>
+<button class="dark" id="speakBtn">🔊 Speak Answer</button>
+</div>
+
+<div class="status" id="voiceStatus">Voice input works in Chrome/Edge if speech recognition is available. Text input always works.</div>
+<div class="answer" id="answerBox">Set your location, then ask Tandee for something nearby.</div>
+</section>
+
+<section class="panel">
+<h2>Live nearby results</h2>
+<div class="cards" id="cards"></div>
+</section>
+
+<section class="notice">
+<strong>Prototype note:</strong> This uses OpenStreetMap/Overpass public data. It may be slower or miss places. Later versions can use Google Places, HERE, Mapbox, or a paid Places API for stronger results.
+</section>
+
+<footer>
+Tandee Travel Tap is a concierge layer, not a navigation system. Use Google Maps or Apple Maps for actual driving directions.
+</footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
